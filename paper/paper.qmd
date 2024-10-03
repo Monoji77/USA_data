@@ -1,16 +1,18 @@
 ---
-title: "My title"
-subtitle: "My subtitle if needed"
+title: "Total and estimated number of US respondents that had a doctorate degree as highest level of attainment"
 author: 
-  - First author
-  - Another author
-thanks: "Code and data are available at: [https://github.com/RohanAlexander/starter_folder](https://github.com/RohanAlexander/starter_folder)."
+  - Chris Yong Hong Sen
+  - Xuanang Ren
+  - Caichen Sun
+  - Irene Liu
+  - Mingxuan Liu
+thanks: "Code and data are available at: [https://github.com/Monoji77/USA_data](https://github.com/Monoji77/USA_data)."
 date: today
 date-format: long
-abstract: "First sentence. Second sentence. Third sentence. Fourth sentence."
 format: pdf
 number-sections: true
 bibliography: references.bib
+bibliographystyle: apa
 ---
 
 ```{r}
@@ -20,238 +22,98 @@ bibliography: references.bib
 
 library(tidyverse)
 library(palmerpenguins)
+usa_data <- read_csv("../data/01-raw_data/usa_00001.csv")
+set.seed(637)
 ```
 
 
-# Introduction
+# Introduction {#sec-intro}
+We will be analysing how many respondents were there in each state (STATEICP) that had a doctoral degree as their highest educational attainment (EDUC). Particularly, we aim to use Laplace ratio estimators to support our findings.
 
-Overview paragraph
-
-Estimand paragraph
-
-Results paragraph
-
-Why it matters paragraph
-
-Telegraphing paragraph: The remainder of this paper is structured as follows. @sec-data....
-
-
+The remainder of this paper is structured as follows. @sec-data will contain information about data retrieval and data manipulation using @citeR. 
 
 
 
 
 # Data {#sec-data}
 
-## Overview
+## Data Retrieval
+Our dataset was obtained from USA Ipums, which is an online US census data for social, economic and health research resource [@citeUSAIPUMS]. Following the instructions outlined by USA Ipums, we are able to select 2022 American Census Dataset, where we subset the state ($STATEICP$) and educational attainment ($EDUCD$) of the individual respondent. These variables are relevant to our research question introduced in @sec-intro.
 
-We use the statistical programming language R [@citeR].... Our data [@shelter].... Following @tellingstories, we consider...
-
-Overview text
-
-## Measurement
-	
-Some paragraphs about how we go from a phenomena in the world to an entry in the dataset.
-
-## Outcome variables
-
-Add graphs, tables and text. Use sub-sub-headings for each outcome variable or update the subheading to be singular.
+## Ratio Estimators Approach Overview
+As for data manipulation, we use tidyverse library from R and we can obtain the total number of respondents in the state of california [@citeR]. Furthermore, we can also obtain the total number of respondents in California with a doctorate degree by finding EDUCD value of 116. We were able to find this value in the documentation provided by USA Ipums [@citeUSAIPUMSDocumentation]. Finally the laplace ratio can be calculated as...
 
 
+\text{californian\_doctorates\_total\_respondents} / \text{californian\_total\_respondents}
 
-Some of our data is of penguins (@fig-bills), from @palmerpenguins.
+We then use this value obtained and multiply it by the number of respondents in other states to determine an estimate number of respondents in that state with a doctorate degree. @tbl-states show us the top few entries of actual number of doctorates per US state and estimated number of doctorates per US state using the aforementioned laplace ratio. Note that the estimated values could differ since the ratio between doctorate respondents and total respondents in california could be different from that of another state. One reason this could be is that there are more universities in some states compared to california (vice versa for states with lesser universities). There are other socio-demographic related reasons as well such as gender and family's household income. This is reflected in @tbl-states where we can observe how the difference between estimated and actual total number of doctorate respondents from the first observation only differs by 0.8% while that of the second observation had a larger difference of 42%.
 
-```{r}
-#| label: fig-bills
-#| fig-cap: Bills of penguins
+
+```{r raw code to obtain results}
+#| label: tbl-states
+#| tbl-cap: states with doctoral as educational attainment
 #| echo: false
 
-ggplot(penguins, aes(x = island, fill = species)) +
-  geom_bar(alpha = 0.8) +
-  scale_fill_manual(values = c("darkorange","purple","cyan4"),
-                    guide = "none") +
-  theme_minimal() +
-  facet_wrap(~species, ncol = 1) +
-  coord_flip()
-```
+######################
+# goal 1: obtain laplace ratio using california data
+#
+######################
 
-Talk more about it.
+#californian ratio
+california_doctorate <- usa_data |>
+  select(STATEICP, EDUCD) |>
+  filter(EDUCD == 116) |> # 116 refers to Doctoral degree 
+  group_by(STATEICP) |>
+  count(name = 'no_of_respondants_doctorate') |>
+  filter(STATEICP == 71) |>
+  pull(no_of_respondants_doctorate)
 
-And also planes (@fig-planes). (You can change the height and width, but don't worry about doing that until you have finished every other aspect of the paper - Quarto will try to make it look nice and the defaults usually work well once you have enough text.)
+california_total <- usa_data |>
+  select(STATEICP, EDUCD) |> # 116 refers to Doctoral degree 
+  group_by(STATEICP) |>
+  count(name = 'no_of_respondants') |>
+  filter(STATEICP == 71) |>
+  pull(no_of_respondants)
 
-```{r}
-#| label: fig-planes
-#| fig-cap: Relationship between wing length and width
-#| echo: false
-#| warning: false
-#| message: false
-
-analysis_data <- read_csv(here::here("data/02-analysis_data/analysis_data.csv"))
-
-analysis_data |> 
-  ggplot(aes(x = width, y = length)) +
-  geom_point(alpha = 0.8) +
-  theme_minimal() +
-  labs(x = "Wing width (mm)",
-       y = "Wing length (mm)")
-```
-
-Talk way more about it. 
-
-## Predictor variables
-
-Add graphs, tables and text.
-
-Use sub-sub-headings for each outcome variable and feel free to combine a few into one if they go together naturally.
+laplace_ratio <- california_doctorate / california_total
 
 
+####################
+# goal 2: estimate total number of doctorates using laplace ratio
+#
+####################
 
+# specific to Doctorates per state
+no_of_respondants_doctorate <- usa_data |>
+  select(STATEICP, EDUCD) |>
+  filter(EDUCD == 116) |> # 116 refers to Doctoral degree 
+  group_by(STATEICP) |>
+  count(name = 'no_of_respondants_doctorate')
 
+#no_of_respondants_doctorate
 
+# total respondents per state
+no_of_respondants <- usa_data |>
+  select(STATEICP, EDUCD) |>
+  group_by(STATEICP) |>
+  count(name = 'no_of_respondants')
+#no_of_respondants
 
-
-
-# Model
-
-The goal of our modelling strategy is twofold. Firstly,...
-
-Here we briefly describe the Bayesian analysis model used to investigate... Background details and diagnostics are included in [Appendix -@sec-model-details].
-
-## Model set-up
-
-Define $y_i$ as the number of seconds that the plane remained aloft. Then $\beta_i$ is the wing width and $\gamma_i$ is the wing length, both measured in millimeters.  
-
-\begin{align} 
-y_i|\mu_i, \sigma &\sim \mbox{Normal}(\mu_i, \sigma) \\
-\mu_i &= \alpha + \beta_i + \gamma_i\\
-\alpha &\sim \mbox{Normal}(0, 2.5) \\
-\beta &\sim \mbox{Normal}(0, 2.5) \\
-\gamma &\sim \mbox{Normal}(0, 2.5) \\
-\sigma &\sim \mbox{Exponential}(1)
-\end{align}
-
-We run the model in R [@citeR] using the `rstanarm` package of @rstanarm. We use the default priors from `rstanarm`.
-
-
-### Model justification
-
-We expect a positive relationship between the size of the wings and time spent aloft. In particular...
-
-We can use maths by including latex between dollar signs, for instance $\theta$.
-
-
-# Results
-
-Our results are summarized in @tbl-modelresults.
-
-```{r}
-#| echo: false
-#| eval: true
-#| warning: false
-#| message: false
-
-library(rstanarm)
-
-first_model <-
-  readRDS(file = here::here("models/first_model.rds"))
-```
-
-```{r}
-#| echo: false
-#| eval: true
-#| label: tbl-modelresults
-#| tbl-cap: "Explanatory models of flight time based on wing width and wing length"
-#| warning: false
-
-modelsummary::modelsummary(
-  list(
-    "First model" = first_model
-  ),
-  statistic = "mad",
-  fmt = 2
-)
+# join both tables
+no_of_respondants_doctorate |>
+  inner_join(no_of_respondants,
+             by= join_by(STATEICP)) |>
+  mutate(estimate_no_of_respondants_doctorate = 
+           round(laplace_ratio * no_of_respondants, 0),
+         .after=no_of_respondants_doctorate) |>
+  ungroup() |>
+  select(`state ID` = STATEICP, 
+         `actual doctorate count` = no_of_respondants_doctorate, 
+         `estimated doctorate count`= estimate_no_of_respondants_doctorate)
 ```
 
 
 
-
-# Discussion
-
-## First discussion point {#sec-first-point}
-
-If my paper were 10 pages, then should be be at least 2.5 pages. The discussion is a chance to show off what you know and what you learnt from all this. 
-
-## Second discussion point
-
-Please don't use these as sub-heading labels - change them to be what your point actually is.
-
-## Third discussion point
-
-## Weaknesses and next steps
-
-Weaknesses and next steps should also be included.
-
-\newpage
-
-\appendix
-
-# Appendix {-}
-
-
-# Additional data details
-
-# Model details {#sec-model-details}
-
-## Posterior predictive check
-
-In @fig-ppcheckandposteriorvsprior-1 we implement a posterior predictive check. This shows...
-
-In @fig-ppcheckandposteriorvsprior-2 we compare the posterior with the prior. This shows... 
-
-```{r}
-#| eval: true
-#| echo: false
-#| message: false
-#| warning: false
-#| label: fig-ppcheckandposteriorvsprior
-#| layout-ncol: 2
-#| fig-cap: "Examining how the model fits, and is affected by, the data"
-#| fig-subcap: ["Posterior prediction check", "Comparing the posterior with the prior"]
-
-pp_check(first_model) +
-  theme_classic() +
-  theme(legend.position = "bottom")
-
-posterior_vs_prior(first_model) +
-  theme_minimal() +
-  scale_color_brewer(palette = "Set1") +
-  theme(legend.position = "bottom") +
-  coord_flip()
-```
-
-## Diagnostics
-
-@fig-stanareyouokay-1 is a trace plot. It shows... This suggests...
-
-@fig-stanareyouokay-2 is a Rhat plot. It shows... This suggests...
-
-```{r}
-#| echo: false
-#| eval: true
-#| message: false
-#| warning: false
-#| label: fig-stanareyouokay
-#| fig-cap: "Checking the convergence of the MCMC algorithm"
-#| fig-subcap: ["Trace plot", "Rhat plot"]
-#| layout-ncol: 2
-
-plot(first_model, "trace")
-
-plot(first_model, "rhat")
-```
-
-
-
-\newpage
 
 
 # References
